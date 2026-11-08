@@ -130,6 +130,8 @@ The line-by-line renderer still exists as the *reference*: in the author's tests
 * Controls and the options menu (`main.c`, `config.c`); the menu draws over the picture and stops the game while it is open. Options live in `data/config.ini` (`screen`, `filter`,
   `volume`, `buttons`; unknown keys are ignored).
 * The program uses `MEMSIZE 1` (the extra RAM of the 2000 / 3000 / Go models); about 49 MB was measured free on a PSP-3000.
+* **Files.** The program writes only inside its own game folder, in `data/` next to `EBOOT.PBP` (the folder comes from the program's own path, so the game folder can have any name):
+  `devilish.sav`, `state1.sav` and, after an option was changed, `config.ini`. Diagnostics (`perf.txt`, `perflog.txt`) are written only in self-test mode or if an empty file `data/diag` exists.
 * **Self-test mode.** If `data/auto` exists (a frame count) the game runs that many frames unattended, driven by `data/script.txt` (lines `FROM TO button[+button]`, buttons `up down left
   right 1 2 start`, `#!` header lines for options), and writes to `data/out/`: `hash.txt` (a CRC of every frame's picture), `audio_crc.txt` (sample count and CRC of the audio),
   `perf.txt` (time per frame on the PSP's clock, audio underruns), a few frame dumps, `screen_check.txt` (the stretched screen against the source picture) and `done.txt`. The same file
