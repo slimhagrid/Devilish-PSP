@@ -81,7 +81,7 @@ included here, and the game's own art must not be committed.
 
 1. Copy the folder `out/DevilishPSP` to the Memory Stick as `ms0:/PSP/GAME/DevilishPSP` (so that `EBOOT.PBP` is in that folder).
 2. Start **Devilish PSP** from *Game -> Memory Stick* in the XMB.
-3. Saves, the settings file and a few logs are written to a `data/` folder next to `EBOOT.PBP` (`devilish.sav`, `state1.sav`, `config.ini`, `out/`).
+3. The game keeps its files in a `data/` folder next to `EBOOT.PBP`, wherever you put the game folder: `devilish.sav` (high scores), `state1.sav` (the quick save) and, once you change an option, `config.ini`. Nothing is written outside the game folder, and no logs unless you create an empty file `data/diag`.
 
 **PPSSPP:** copy the same folder to `<PPSSPP memstick>/PSP/GAME/DevilishPSP`, or open `EBOOT.PBP` with *File -> Load*.
 
