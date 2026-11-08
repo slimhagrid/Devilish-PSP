@@ -2,7 +2,8 @@ Devilish PSP - native port of the Game Gear game "Devilish"
 
 Install:  copy the folder DevilishPSP to  ms0:/PSP/GAME/  on the Memory Stick (so that EBOOT.PBP is at ms0:/PSP/GAME/DevilishPSP/EBOOT.PBP).
           Nothing else is needed: the game's data is inside EBOOT.PBP, there is no ROM file to copy and none is read.
-          The program creates data/ next to EBOOT.PBP for its own files (devilish.sav, state1.sav, config.ini, out/).
+          The program keeps its files in a data/ folder next to EBOOT.PBP (devilish.sav = high scores, state1.sav = quick save, and config.ini once you change an option);
+          nothing is ever written outside the game folder.
 
 What it is: the game's own Z80 code translated to C (no CPU emulator), with PSP-native video (drawn by the GE) and a native sound engine.
 
@@ -17,6 +18,6 @@ Save state: SELECT + R saves the game at once into data/state1.sav, SELECT + L l
 High scores: BEST PLAYERS and the time trial BEST LAP TIMES are kept in data/devilish.sav between runs; delete the file to start again.
 
 If the game stops with "MISS at pc=$XXXX" the text names code the translator did not find: report it.
-data/out/ gets perf.txt / fatal.txt for the hardware checks.
+Diagnostics (perf.txt, perflog.txt) are written only if you create an empty file data/diag; if the game stops with an error it writes data/out/fatal.txt.
 
 This EBOOT.PBP contains the game's data and code derived from the user's own Game Gear ROM: it is for private use only, do not share it.
