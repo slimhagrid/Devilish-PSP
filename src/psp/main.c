@@ -36,14 +36,33 @@ PSP_MAIN_THREAD_ATTR(PSP_THREAD_ATTR_USER);
 PSP_MAIN_THREAD_STACK_SIZE_KB(256);
 PSP_HEAP_SIZE_KB(-1024);
 
-#define BASE "ms0:/PSP/GAME/DevilishPSP"
-#define DATA BASE "/data"
-#define OUTDIR DATA "/out"
-#define AUTOFILE DATA "/auto"
-#define SCRIPTFILE DATA "/script.txt"
-#define CONFIGFILE DATA "/config.ini"        /* options (M9): screen size, filter, volume, buttons; changed in the pause menu */
-#define STATEFILE DATA "/state1.sav"        /* the quick save slot (M8, src/rt/state.c): SELECT + R saves, SELECT + L loads */
-#define SAVEFILE DATA "/devilish.sav"     /* the high-score tables (M8, src/rt/hiscore.c) */
+/* Where the program keeps its files: a data/ folder NEXT TO THE EBOOT, wherever the user put the game folder (the path comes from argv[0] = ".../<folder>/EBOOT.PBP"). Nothing is ever
+ * created outside that folder: a folder in ms0:/PSP/GAME/ without an EBOOT.PBP shows up as "Corrupted data" in the XMB. The default is only used if the system gives no path. */
+#define BASE_DEFAULT "ms0:/PSP/GAME/DevilishPSP"
+static char g_base[256] = BASE_DEFAULT, g_data[288], g_out[320];
+static int g_base_known;                                  /* the game folder came from argv[0] (it exists: the EBOOT is in it) */
+static const char *pth(const char *dir, const char *name)    /* dir + "/" + name in one of a few static buffers (use at once) */
+{
+    static char buf[4][400];
+    static unsigned k;
+    char *o = buf[k++ & 3];
+    snprintf(o, sizeof buf[0], "%s/%s", dir, name);
+    return o;
+}
+static void set_paths(int argc, char **argv)
+{
+    if (argc > 0 && argv && argv[0]) {
+        const char *a = argv[0], *sl = strrchr(a, '/');
+        if (sl && sl > a && strchr(a, ':') && (size_t)(sl - a) < sizeof g_base) { memcpy(g_base, a, (size_t)(sl - a)); g_base[sl - a] = 0; g_base_known = 1; }
+    }
+    snprintf(g_data, sizeof g_data, "%s/data", g_base);
+    snprintf(g_out, sizeof g_out, "%s/out", g_data);
+}
+#define AUTOFILE pth(g_data, "auto")
+#define SCRIPTFILE pth(g_data, "script.txt")
+#define CONFIGFILE pth(g_data, "config.ini")        /* options (M9): screen size, filter, volume, buttons; changed in the pause menu */
+#define STATEFILE pth(g_data, "state1.sav")        /* the quick save slot (M8, src/rt/state.c): SELECT + R saves, SELECT + L loads */
+#define SAVEFILE pth(g_data, "devilish.sav")     /* the high-score tables (M8, src/rt/hiscore.c) */
 
 #define ROM_CRC32 0xC01293B0u              /* identifies the game in save states (the embedded image has this CRC, checked when it was generated) */
 extern const uint8_t gen_rom_image[];
@@ -98,16 +117,16 @@ static void write_file(const char *path, const void *data, size_t n)
 
 static void ensure_dirs(void)
 {
-    sceIoMkdir(BASE, 0777);
-    sceIoMkdir(DATA, 0777);
-    sceIoMkdir(OUTDIR, 0777);
+    if (!g_base_known) sceIoMkdir(g_base, 0777);          /* only the fallback folder; the real game folder is where the EBOOT already is */
+    sceIoMkdir(g_data, 0777);
+    sceIoMkdir(g_out, 0777);
 }
 
 /* overrides the runtime's weak default: the message goes to a file and to the screen (a translated-code miss, a changed RAM program, a bad ROM) */
 void rt_fatal(const char *msg)
 {
     ensure_dirs();
-    write_file(OUTDIR "/fatal.txt", msg, strlen(msg));
+    write_file(pth(g_out, "fatal.txt"), msg, strlen(msg));
     pspDebugScreenInit();
     pspDebugScreenPrintf("Devilish PSP stopped:\n\n%s\n\nHOME exits.\n", msg);
     for (;;) sceDisplayWaitVblankStart();
@@ -334,7 +353,7 @@ static int nhot[2];
 static int rec_synth;
 static unsigned hot_prev;
 static int hot_pending;                  /* bit 0 = L, bit 1 = R pressed since the last frame */
-static char recpath[64];
+static char recpath[400];
 static char recbuf[16384];
 static size_t reclen;
 static u8 rec_cur;                        /* buttons now held (what the game will see in the next frame) */
@@ -402,7 +421,7 @@ static void rec_stretch(long from, long to, u8 m)
 static void rec_open(void)
 {
     for (int n = 1; n < 1000; n++) {
-        snprintf(recpath, sizeof recpath, DATA "/rec_%d.txt", n);
+        snprintf(recpath, sizeof recpath, "%s/rec_%d.txt", g_data, n);
         SceIoStat st;
         if (sceIoGetstat(recpath, &st) < 0) break;
     }
@@ -558,12 +577,12 @@ static void screen_check(void)
 static void dump_rgb(long f)
 {
     static u8 rgb[GG_W * GG_H * 3];
-    char name[96];
+    char name[400];
     for (int i = 0; i < GG_W * GG_H; i++) {
         u32 p = ge_pic[i];
         rgb[i * 3] = (u8)p; rgb[i * 3 + 1] = (u8)(p >> 8); rgb[i * 3 + 2] = (u8)(p >> 16);
     }
-    snprintf(name, sizeof name, OUTDIR "/frame_%05ld.rgb", f);
+    snprintf(name, sizeof name, "%s/frame_%05ld.rgb", g_out, f);
     write_file(name, rgb, sizeof rgb);
 }
 
@@ -571,9 +590,9 @@ static void dump_rgb(long f)
 static void dump_screen(long f)
 {
     static u8 row[SCR_W * 3];
-    char name[96];
+    char name[400];
     const u32 *fbv = (const u32 *)(VRAM_CPU + shown_off);
-    snprintf(name, sizeof name, OUTDIR "/screen_%05ld.rgb", f);
+    snprintf(name, sizeof name, "%s/screen_%05ld.rgb", g_out, f);
     SceUID fd = sceIoOpen(name, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
     if (fd < 0) return;
     for (int y = 0; y < SCR_H; y++) {
@@ -620,7 +639,7 @@ static void write_perf(long frames)
                         "  (all three are CPU time inside 'emulate' / 'present'; the GE itself runs in parallel with the emulation)\n",
                         (unsigned long long)ge_n, (double)ge_acc_build / gn / 1000.0, (double)ge_acc_submit / gn / 1000.0, (double)ge_acc_stall / gn / 1000.0);
     }
-    write_file(autotest ? OUTDIR "/perf.txt" : DATA "/perf.txt", text, (size_t)len);
+    write_file(autotest ? pth(g_out, "perf.txt") : pth(g_data, "perf.txt"), text, (size_t)len);
     {   /* timeline: one line per window, appended (frame, emulate avg / max, sprite flags, audio, audio tail, GE builder / submit, work avg / max, late frames, underruns, ring min) */
         char line[256];
         double gn = (double)(ge_n ? ge_n : 1);
@@ -628,7 +647,7 @@ static void write_perf(long frames)
                           frames, (double)t_acc_emu / n / 1000.0, (double)t_max_emu / 1000.0, p_frames ? (double)p_render / (double)p_frames / 1000.0 : 0.0,
                           p_frames ? (double)p_audio / (double)p_frames / 1000.0 : 0.0, (double)t_acc_tail / n / 1000.0, (double)ge_acc_build / gn / 1000.0, (double)ge_acc_submit / gn / 1000.0,
                           (double)(t_acc_emu + t_acc_tail + t_acc_present) / n / 1000.0, (double)t_max_work / 1000.0, late_frames, audio_underruns, fill_min == 0xFFFFFFFFu ? 0u : fill_min);
-        SceUID lf = sceIoOpen(autotest ? OUTDIR "/perflog.txt" : DATA "/perflog.txt", PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
+        SceUID lf = sceIoOpen(autotest ? pth(g_out, "perflog.txt") : pth(g_data, "perflog.txt"), PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
         if (lf >= 0) { sceIoWrite(lf, line, (size_t)ll); sceIoClose(lf); }
     }
 }
@@ -828,19 +847,19 @@ static void on_frame(uint64_t frame)
 
     if (autotest && f + 1 >= auto_frames) {
         write_perf(f + 1);
-        write_file(OUTDIR "/hash.txt", hashbuf, hashlen);
+        write_file(pth(g_out, "hash.txt"), hashbuf, hashlen);
         char at[96];
         int al = snprintf(at, sizeof at, "samples %lu crc32 %08x\n", (unsigned long)asamples, (unsigned)acrc);
-        write_file(OUTDIR "/audio_crc.txt", at, (size_t)al);
+        write_file(pth(g_out, "audio_crc.txt"), at, (size_t)al);
         {
             char sc[500];
             int sl = snprintf(sc, sizeof sc, "screen check of %llu frames (every 50th), %llu pixels each: %llu exactly the centre-sampled source pixel, %llu one source pixel off (fixed-point rounding of the stretch), %llu WRONG; non-black side-bar pixels %llu; frames with an error %llu\n",
                               (unsigned long long)chk_frames, (unsigned long long)(chk_frames ? (chk_exact + chk_near + chk_far) / chk_frames : 0), (unsigned long long)chk_exact, (unsigned long long)chk_near, (unsigned long long)chk_far,
                               (unsigned long long)chk_side_bad, (unsigned long long)chk_frames_bad_b);
-            write_file(OUTDIR "/screen_check.txt", sc, (size_t)sl);
+            write_file(pth(g_out, "screen_check.txt"), sc, (size_t)sl);
         }
         if (hs_on && hs_pending(&hs)) hs_write();
-        write_file(OUTDIR "/done.txt", "ok\n", 3);
+        write_file(pth(g_out, "done.txt"), "ok\n", 3);
         sceIoRemove(AUTOFILE);          /* a self-test run started by hand (data/auto) switches itself off, so the next start is a normal one */
         sceKernelExitGame();
     }
@@ -871,8 +890,9 @@ static void on_frame(uint64_t frame)
     t_last_end = now_us();
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    set_paths(argc, argv);
     SceUID th = sceKernelCreateThread("update_thread", cb_thread, 0x11, 0xFA0, 0, NULL);
     if (th >= 0) sceKernelStartThread(th, 0, NULL);
     scePowerSetClockFrequency(333, 333, 166);
@@ -895,7 +915,7 @@ int main(void)
 
     if (!autotest) {
         size_t rsz = 0;
-        char *rc = (char *)read_file(DATA "/record", &rsz);
+        char *rc = (char *)read_file(pth(g_data, "record"), &rsz);
         if (rc) { recording = 1; rec_parse_config(rc); free(rc); rec_open(); }
     }
 
