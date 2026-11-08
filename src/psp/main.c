@@ -109,6 +109,10 @@ static int cb_thread(SceSize args, void *argp)
 
 static void write_file(const char *path, const void *data, size_t n)
 {
+    /* data/ (and data/out/ for diagnostics) are created when something is first written there: a normal player's data/ holds only what the game saves */
+    if (!g_base_known) sceIoMkdir(g_base, 0777);          /* only the fallback folder; the real game folder is where the EBOOT already is */
+    sceIoMkdir(g_data, 0777);
+    if (strstr(path, "/out/")) sceIoMkdir(g_out, 0777);
     SceUID f = sceIoOpen(path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
     if (f < 0) return;
     sceIoWrite(f, data, n);
@@ -284,6 +288,7 @@ typedef struct { u8 mask; long from, to; } Press;
 static Press presses[PRESS_MAX];
 static int npress;
 static int autotest;
+static int diag;               /* diagnostics (perf.txt / perflog.txt, frame dumps): the self-test, or a normal run with an (empty) file data/diag; a normal player gets none of these files */
 static long auto_frames;
 static char *hashbuf;
 static size_t hashlen;
@@ -614,6 +619,7 @@ static long perf_frames, late_frames, p_frames;
 
 static void write_perf(long frames)
 {
+    if (!diag) return;
     char text[3072];
     double n = (double)(perf_frames ? perf_frames : 1);
     double wall_s = (double)(now_us() - t_win_start) / 1e6, fps = wall_s > 0 ? perf_frames / wall_s : 0;
@@ -701,11 +707,16 @@ static void apply_cfg(void)
     ge_set_view(x, y, w, h, cfg.smooth);
 }
 
+static char cfg_last[512];        /* the options text as it was loaded or last written: config.ini is only written when the options changed */
+static size_t cfg_last_n;
 static void cfg_save(void)
 {
     char buf[512];
     size_t n = cfg_format(&cfg, buf, sizeof buf);
-    if (n) write_file(CONFIGFILE, buf, n);
+    if (!n || (n == cfg_last_n && !memcmp(buf, cfg_last, n))) return;
+    write_file(CONFIGFILE, buf, n);
+    memcpy(cfg_last, buf, n);
+    cfg_last_n = n;
 }
 
 static void menu_text(int x, int y, u32 color, const char *str)
@@ -896,12 +907,13 @@ int main(int argc, char **argv)
     SceUID th = sceKernelCreateThread("update_thread", cb_thread, 0x11, 0xFA0, 0, NULL);
     if (th >= 0) sceKernelStartThread(th, 0, NULL);
     scePowerSetClockFrequency(333, 333, 166);
-    ensure_dirs();
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
 
     size_t asz = 0;
     char *autotxt = (char *)read_file(AUTOFILE, &asz);
+    { SceIoStat dst; diag = autotxt != NULL || sceIoGetstat(pth(g_data, "diag"), &dst) >= 0; }
+    if (diag) ensure_dirs();
     if (autotxt) {
         autotest = 1;
         auto_frames = atol(autotxt);
@@ -935,6 +947,7 @@ int main(int argc, char **argv)
         char *ct = (char *)read_file(CONFIGFILE, &csz);
         if (ct) { char *c2 = (char *)realloc(ct, csz + 1); if (c2) { c2[csz] = 0; cfg_parse(&cfg, c2); ct = c2; } free(ct); }
     }
+    cfg_last_n = cfg_format(&cfg, cfg_last, sizeof cfg_last);       /* what is on disk (or the defaults, nothing on disk) */
     video_init();
     hw_scene_on = 1;
     ge_init();
