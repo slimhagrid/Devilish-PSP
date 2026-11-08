@@ -1,0 +1,15 @@
+# Hand annotations for tools/survey.py. One directive per line, '#' starts a comment. Every entry names the evidence it rests on.
+#
+#   table ADDR COUNT BANK   COUNT little-endian code pointers at ADDR (in the fixed region, $0100-$7FFF); each non-zero entry is a code seed.
+#                           BANK = "B" (slot 2 holds the base bank when the handler runs), a number 0-7, or "-" (entry is in the fixed region).
+#   seed ADDR BANK          one code entry point.
+#
+# Evidence is in NOTES.md "M1 results"; anything marked (candidate) is a heuristic hit that the oracle's coverage (M2) must confirm or remove.
+
+# State dispatcher in bank 1: a jump through a table of 10 code pointers at $593c, indexed by the game state (routine at $5980-$5990).
+# Entries 0-9; word 6 is 0000 (unused state); the word after entry 9 is not an address. The targets decode as drawing / menu code.
+table 0x593c 10 -
+
+# (candidate) three code pointers at $3cb4, loaded by code at $3ce5; the first two targets decode as code (VDP register writes; a game state switch), the word after the
+# third is not an address.
+table 0x3cb4 3 -

@@ -1,0 +1,7 @@
+Optional XMB art for the PSP menu. The kit ships none (the obvious pictures are the game's own artwork, which is not ours to hand out).
+Put your own files here before building and the build picks them up:
+    ICON0.png   144 x 80     the icon in the game list
+    PIC1.png    480 x 272    the background
+    PIC0.png    310 x 180    the preview (optional)
+    SND0.AT3                 the background music (optional; needs an AT3 encoder, not part of this kit)
+Missing files are skipped.

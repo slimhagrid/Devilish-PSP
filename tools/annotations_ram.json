@@ -1,0 +1,19 @@
+{
+  "_comment": "The RAM-resident sound driver ($D500-$DE66), unpacked from bank 5 at boot (loader $01F1 / $10A4) and called with bank 7 mapped. Cells come from the oracle's write watch over all scenarios (tools/ram_patches.py); every cell is an operand or opcode byte of an executed instruction that the program rewrites. Re-run tools/ram_patches.py after adding scenarios.",
+  "image": "extracted/oracle/ram_image.bin",
+  "entries": ["0xd500", "0xd503"],
+  "opcode_cells": {
+    "0xdca9": [0, 201],
+    "0xdcb4": [0, 201],
+    "0xdcce": [0, 201]
+  },
+  "operand_cells": [
+    "0xd5f2", "0xd5f3",
+    "0xd6fe", "0xd6ff",
+    "0xd835", "0xd836",
+    "0xdaeb", "0xdaec",
+    "0xdd00",
+    "0xdd07", "0xdd08",
+    "0xdd91", "0xdd92"
+  ]
+}

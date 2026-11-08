@@ -1,0 +1,6 @@
+# probe: title (from ~900) -> Start -> SELECT GAMES (~1250) -> Start -> OPTIONS (~1350) -> Start on GAME START -> ?
+#! frames 3600
+#! dump-every 75
+1000 1004 start
+1300 1304 start
+1500 1504 start

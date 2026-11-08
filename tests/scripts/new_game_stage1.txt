@@ -1,0 +1,15 @@
+# new game, stage 1 (Graveyard): title -> SELECT GAMES -> OPTIONS -> GAME START -> intro -> play with the paddle until the balls are lost -> GAME OVER / CONTINUE
+# Timeline measured on the oracle (frame numbers): title from ~850, SELECT GAMES ~1250, OPTIONS ~1350, "STAGE 1" card ~1575, play from ~1870.
+#! frames 3200
+#! dump-at 100,500,900,1300,1400,1600,1900,2000,2100,2300,2500,2700,3000
+1000 1004 start       # title: PRESS START
+1300 1304 start       # SELECT GAMES: NORMAL GAME
+1500 1504 start       # OPTIONS: GAME START
+1900 1904 1           # launch the ball
+1960 2040 left
+2040 2140 right
+2140 2200 left
+2200 2230 1
+2230 2330 right
+2330 2420 left
+2420 2500 right
